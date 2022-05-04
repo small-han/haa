@@ -28,36 +28,34 @@ def detect_name(path):
 class TracesContent(object):
 
     def __init__(self):
-        self.num = 0
-        self.htflag = []
-        self.waves = []
-        self.keys = []
-        self.textin = []
-        self.textout = []
+        self.data = {"train_data": None, "train_label": None, "test_data": None, "test_label": None}
 
-    def add_trace(self, path, htflag):
+    def _set_data(self, data, htflag, data_type="train"):
+        if data_type + "_data" not in self.data:
+            self.data[data_type + "_data"] = data
+            if htflag == 0:
+                self.data[data_type + "_label"] = np.zeros(data.shape[0])
+            else:
+                self.data[data_type + "_label"] = np.ones(data.shape[0])
+        else:
+            self.data[data_type + "_data"] = np.vstack((self.data[data_type + "_data"], data))
+            if htflag == 0:
+                self.data[data_type + "_label"] = np.hstack((self.data[data_type + "_label"], np.zeros(data.shape[0])))
+            else:
+                self.data[data_type + "_label"] = np.hstack((self.data[data_type + "_label"], np.ones(data.shape[0])))
+
+    def add_trace(self, path, htflag, data_type="train"):
         files_name = detect_name(path)
-        if self.num == 0:  # 如果原来没有numpy数组
-            self.waves = np.load(path + files_name["traces"])
-            self.keys = np.load(path + files_name["keylist"])
-            self.textin = np.load(path + files_name["textin"])
-            self.textout = np.load(path + files_name["textout"])
-            if htflag == 0:
-                self.htflag = np.zeros(self.waves.shape[0])
-            else:
-                self.htflag = np.ones(self.waves.shape[0])
-        else:  # 添加新的numpy数组
-            self.waves = np.vstack((self.waves, np.load(path + files_name["traces"])))
-            self.keys = np.vstack((self.keys, np.load(path + files_name["keylist"])))
-            self.textin = np.vstack((self.textin, np.load(path + files_name["textin"])))
-            self.textout = np.vstack((self.textout, np.load(path + files_name["textout"])))
-            if htflag == 0:
-                self.htflag = np.hstack((self.htflag, np.zeros(self.waves.shape[0] - self.htflag.shape[0])))
-            else:
-                self.htflag = np.hstack((self.htflag, np.ones(self.waves.shape[0] - self.htflag.shape[0])))
-        assert self.waves.shape[0] == self.keys.shape[0] == self.textin.shape[0] == \
-               self.textout.shape[0] == self.htflag.shape[0], "traces长度不一样"
-        self.num += len(self.waves)
+        data = np.load(path + files_name["traces"])
+        self._set_data(data, htflag, data_type)
+
+    def split_data(self, train_size):
+        from sklearn.model_selection import train_test_split
+        all_data = np.vstack((self.data["train_data"], self.data["test_data"]))
+        all_label = np.hstack((self.data["train_label"], self.data["test_label"]))
+        self.data["train_data"], self.data["test_data"], self.data["train_label"], self.data["test_label"] = \
+            train_test_split(all_data, all_label, train_size)
+
 
 
 if __name__ == "__main__":
